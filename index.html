@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>🎵 我的音乐相册</title>
+    <style>
+        /* 全局重置与字体 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'PingFang SC', Roboto, 'Helvetica Neue', sans-serif;
+            background: #f4f1ea;  /* 温柔米灰底 */
+            background-image: radial-gradient(circle at 10% 20%, rgba(255, 245, 235, 0.6) 0%, transparent 50%);
+            min-height: 100vh;
+            padding: 20px 20px 120px 20px; /* 底部留出播放器空间 */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* 页面标题 */
+        .header {
+            text-align: center;
+            margin: 10px 0 30px 0;
+        }
+
+        .header h1 {
+            font-size: 2.4rem;
+            font-weight: 300;
+            letter-spacing: 4px;
+            color: #3d3d3d;
+            text-shadow: 2px 2px 4px rgba(255, 215, 175, 0.3);
+        }
+
+        .header p {
+            color: #7a6a5a;
+            letter-spacing: 2px;
+            font-size: 0.95rem;
+            margin-top: 6px;
+            opacity: 0.8;
+        }
+
+        /* 照片网格容器 */
+        .gallery {
+            max-width: 1200px;
+            width: 100%;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 24px;
+            justify-content: center;
+        }
+
+        /* 每张照片卡片 */
+        .photo-card {
+            background: #ffffff;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 10px 25px -8px rgba(0, 0, 0, 0.1), 0 4px 10px 0 rgba(0, 0, 0, 0.03);
+            transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            cursor: pointer;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(2px);
+        }
+
+        .photo-card:hover {
+            transform: translateY(-8px) scale(1.01);
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.2);
+        }
+
+        .photo-card img {
+            width: 100%;
+            height: 280px;
+            object-fit: cover;
+            display: block;
+            transition: transform 0.5s ease;
+        }
+
+        .photo-card:hover img {
+            transform: scale(1.02);
+        }
+
+        .photo-card .caption {
+            padding: 14px 18px;
+            color: #4a3f37;
+            font-size: 0.95rem;
+            background: rgba(255, 248, 240, 0.7);
+            backdrop-filter: blur(4px);
+            border-top: 1px solid #f0e8de;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .photo-card .caption span {
+            font-weight: 300;
+            letter-spacing: 0.5px;
+        }
+
+        .photo-card .caption i {
+            font-style: normal;
+            background: #e8ddd0;
+            padding: 4px 12px;
+            border-radius: 30px;
+            font-size: 0.7rem;
+            color: #5e4f3f;
+            letter-spacing: 1px;
+        }
+
+        /* 灯箱 (点击图片放大) */
+        .lightbox {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(20, 18, 16, 0.88);
+            backdrop-filter: blur(12px);
+            z-index: 999;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            padding: 30px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .lightbox.active {
+            display: flex;
+        }
+
+        .lightbox img {
+            max-width: 90%;
+            max-height: 80vh;
+            object-fit: contain;
+            border-radius: 16px;
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .lightbox .close-btn {
+            position: absolute;
+            top: 30px;
+            right: 40px;
+            font-size: 3rem;
+            color: #fff;
+            cursor: pointer;
+            opacity: 0.6;
+            transition: 0.2s;
+            background: none;
+            border: none;
+            font-weight: 100;
+        }
+
+        .lightbox .close-btn:hover {
+            opacity: 1;
+            transform: rotate(90deg);
+        }
+
+        .lightbox .lightbox-caption {
+            color: #ddd;
+            margin-top: 20px;
+            font-size: 1.1rem;
+            letter-spacing: 1px;
+            background: rgba(0,0,0,0.3);
+            padding: 8px 24px;
+            border-radius: 40px;
+            backdrop-filter: blur(4px);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        /* ---------- 底部固定音乐播放器 ---------- */
+        .music-player {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(255, 248, 242, 0.85);
+            backdrop-filter: blur(18px) saturate(180%);
+            border-top: 1px solid rgba(255, 255, 255, 0.6);
+            box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.06);
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 15px 30px;
+            z-index: 100;
+        }
+
+        .music-player .track-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 150px;
+        }
+
+        .music-player .track-info .icon {
+            font-size: 1.8rem;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+        }
+
+        .music-player .track-info .name {
+            font-weight: 500;
+            color: #2d241e;
+            font-size: 0.95rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 120px;
+        }
+
+        .music-player audio {
+            width: 280px;
+            max-width: 100%;
+            height: 40px;
+            border-radius: 40px;
+            outline: none;
+            background: transparent;
+            filter: drop-shadow(0 2px 6px rgba(0,0,0,0.05));
+        }
+
+        .music-player audio::-webkit-media-controls-panel {
+            background: #fefaf5;
+            border-radius: 40px;
+            border: 1px solid #f0e4d8;
+        }
+
+        /* 自定义音频占位文字 */
+        .music-player .hint {
+            font-size: 0.8rem;
+            color: #9a8a7a;
+            letter-spacing: 0.5px;
+            background: #f0e8de;
+            padding: 6px 16px;
+            border-radius: 40px;
+            white-space: nowrap;
+        }
+
+        /* 空状态和加载提示（占位图用） */
+        .placeholder-note {
+            text-align: center;
+            color: #a09080;
+            font-size: 0.9rem;
+            margin-top: 40px;
+            padding: 30px;
+            border: 2px dashed #ddd6cc;
+            border-radius: 60px;
+            background: rgba(255,255,240,0.3);
+            width: 100%;
+        }
+
+        /* 响应式调整 */
+        @media (max-width: 600px) {
+            .header h1 { font-size: 1.8rem; }
+            .gallery { gap: 16px; }
+            .photo-card img { height: 200px; }
+            .music-player {
+                padding: 12px 16px;
+                gap: 10px;
+                flex-direction: column;
+                align-items: center;
+            }
+            .music-player audio { width: 100%; }
+            .music-player .track-info .name { max-width: 80px; }
+            .lightbox .close-btn { top: 20px; right: 25px; font-size: 2.5rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 头部 -->
+    <div class="header">
+        <h1>✨ 时光映像</h1>
+        <p>🎞️ 每一张照片，都有一段旋律</p>
+    </div>
+
+    <!-- 照片墙 -->
+    <div class="gallery" id="galleryContainer">
+        <!-- 照片由 JavaScript 动态生成，方便替换 -->
+    </div>
+
+    <!-- 灯箱 -->
+    <div class="lightbox" id="lightbox">
+        <button class="close-btn" id="closeLightbox">×</button>
+        <img id="lightboxImg" src="" alt="放大预览">
+        <div class="lightbox-caption" id="lightboxCaption">照片</div>
+    </div>
+
+    <!-- 底部音乐播放器 -->
+    <div class="music-player">
+        <div class="track-info">
+            <span class="icon">🎵</span>
+            <span class="name" id="trackName">微风午后</span>
+        </div>
+        
+        <!-- 音乐控件 -->
+        <audio controls id="audioPlayer">
+            <!-- 默认示例音乐 (可替换为你自己的MP3链接) -->
+            <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" type="audio/mpeg">
+            您的浏览器不支持 audio 标签，请更换浏览器。
+        </audio>
+        
+        <span class="hint">🎧 点击播放</span>
+    </div>
+
+    <script>
+        (function() {
+            // ============================================================
+            // 1. 配置你的照片数据（在这里修改！）
+            //    支持 jpg, png, webp 等格式，建议使用正方形或3:4比例图片
+            // ============================================================
+            const photos = [
+                { 
+                    src: 'https://picsum.photos/seed/1/400/400', 
+                    caption: '🌅 海边落日', 
+                    tag: '2024 夏' 
+                },
+                { 
+                    src: 'https://picsum.photos/seed/2/400/400', 
+                    caption: '🌲 森林小径', 
+                    tag: '2024 秋' 
+                },
+                { 
+                    src: 'https://picsum.photos/seed/3/400/400', 
+                    caption: '🏙️ 城市夜景', 
+                    tag: '2025 冬' 
+                },
+                { 
+                    src: 'https://picsum.photos/seed/4/400/400', 
+                    caption: '🌸 樱花树下', 
+                    tag: '2025 春' 
+                },
+                { 
+                    src: 'https://picsum.photos/seed/5/400/400', 
+                    caption: '☕ 街角咖啡', 
+                    tag: '生活碎片' 
+                },
+                { 
+                    src: 'https://picsum.photos/seed/6/400/400', 
+                    caption: '🐈 慵懒午后', 
+                    tag: '日常' 
+                },
+                { 
+                    src: 'https://picsum.photos/seed/7/400/400', 
+                    caption: '🌊 浪花拍岸', 
+                    tag: '旅行' 
+                },
+                { 
+                    src: 'https://picsum.photos/seed/8/400/400', 
+                    caption: '🎈 童年时光', 
+                    tag: '回忆' 
+                }
+            ];
+
+            // ============================================================
+            // 2. 配置音乐 (替换为你自己的音乐文件)
+            //    支持 mp3, wav, ogg 等格式
+            //    可以直接放网络链接，或者本地相对路径如 'music/mySong.mp3'
+            // ============================================================
+            const musicConfig = {
+                src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3', // 替换这里！
+                name: '微风午后 (SoundHelix)'
+            };
+
+            // ============================================================
+            // 开始渲染页面
+            // ============================================================
+
+            // 获取容器
+            const gallery = document.getElementById('galleryContainer');
+            const lightbox = document.getElementById('lightbox');
+            const lightboxImg = document.getElementById('lightboxImg');
+            const lightboxCaption = document.getElementById('lightboxCaption');
+            const closeBtn = document.getElementById('closeLightbox');
+
+            // 渲染照片
+            function renderGallery() {
+                if (!gallery) return;
+                gallery.innerHTML = ''; // 清空
+
+                photos.forEach((photo, index) => {
+                    const card = document.createElement('div');
+                    card.className = 'photo-card';
+
+                    const img = document.createElement('img');
+                    img.src = photo.src;
+                    img.alt = photo.caption || `照片 ${index+1}`;
+                    img.loading = 'lazy'; // 懒加载优化
+
+                    const captionDiv = document.createElement('div');
+                    captionDiv.className = 'caption';
+                    
+                    const captionSpan = document.createElement('span');
+                    captionSpan.textContent = photo.caption || '📷 无题';
+                    
+                    const tagSpan = document.createElement('i');
+                    tagSpan.textContent = photo.tag || '相册';
+
+                    captionDiv.appendChild(captionSpan);
+                    captionDiv.appendChild(tagSpan);
+
+                    card.appendChild(img);
+                    card.appendChild(captionDiv);
+
+                    // 点击卡片打开灯箱
+                    card.addEventListener('click', function(e) {
+                        // 防止点到内部链接冒泡
+                        lightboxImg.src = photo.src;
+                        lightboxCaption.textContent = photo.caption || '📷 照片';
+                        lightbox.classList.add('active');
+                        document.body.style.overflow = 'hidden';
+                    });
+
+                    gallery.appendChild(card);
+                });
+            }
+
+            // 关闭灯箱
+            function closeLightbox() {
+                lightbox.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+
+            closeBtn.addEventListener('click', closeLightbox);
+            lightbox.addEventListener('click', function(e) {
+                if (e.target === lightbox) {
+                    closeLightbox();
+                }
+            });
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    closeLightbox();
+                }
+            });
+
+            // 设置音乐
+            function setupMusic() {
+                const audio = document.getElementById('audioPlayer');
+                const trackNameEl = document.getElementById('trackName');
+                
+                if (audio && trackNameEl) {
+                    // 如果有配置音乐源，替换
+                    if (musicConfig.src) {
+                        // 清除原有source，重新添加
+                        audio.innerHTML = '';
+                        const source = document.createElement('source');
+                        source.src = musicConfig.src;
+                        source.type = 'audio/mpeg'; 
+                        // 简单判断后缀，可扩展
+                        if (musicConfig.src.endsWith('.wav')) source.type = 'audio/wav';
+                        else if (musicConfig.src.endsWith('.ogg')) source.type = 'audio/ogg';
+                        else source.type = 'audio/mpeg';
+                        
+                        audio.appendChild(source);
+                        audio.load(); // 重新加载
+                    }
+
+                    if (musicConfig.name) {
+                        trackNameEl.textContent = musicConfig.name;
+                    }
+                }
+            }
+
+            // 初始化
+            renderGallery();
+            setupMusic();
+
+            // 如果照片数量为0，显示提示（但默认有占位图，不会触发）
+            if (photos.length === 0) {
+                gallery.innerHTML = `<div class="placeholder-note">📸 还没有照片呢，快去配置 photos 数组吧！</div>`;
+            }
+
+            // 控制台提示
+            console.log('✅ 音乐相册已启动！');
+            console.log('💡 如何自定义: 找到 photos 数组替换图片链接，修改 musicConfig 更换音乐。');
+        })();
+    </script>
+
+</body>
+</html>
